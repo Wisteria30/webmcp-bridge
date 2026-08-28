@@ -1,0 +1,38 @@
+name: publish
+
+# GitHub Release の発行を起点に npm へ publish する。
+# 認証は npm の Trusted Publishing(OIDC)。トークンや OTP は使わない。
+# 事前に npmjs.com のパッケージ設定で、この repo と workflow(publish.yml)を
+# trusted publisher として登録しておくこと。
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Trusted Publishing に必須: OIDC トークンの発行権限
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - name: Verify release tag matches package.json version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "release tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
+            exit 1
+          fi
+      # Trusted Publishing は npm CLI 11.5.1 以降が必要。Node 同梱版に依存しない。
+      - run: npm install -g npm@latest
+      - run: npm publish

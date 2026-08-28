@@ -96,6 +96,15 @@ bun install
 bun run lint && bun run typecheck && bun run test && bun run build
 ```
 
+## Releasing
+
+Publishing is automated with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/)
+(GitHub Actions OIDC — no tokens, provenance attached automatically):
+
+1. Bump `version` in `package.json` and merge to `main`
+2. Create a GitHub Release with tag `v<version>` (e.g. `v0.1.1`)
+3. The `publish` workflow checks, builds, verifies the tag matches `package.json`, and publishes
+
 ## License
 
 [MIT](LICENSE)
