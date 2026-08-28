@@ -103,7 +103,9 @@ Publishing is automated with [npm trusted publishing](https://docs.npmjs.com/tru
 
 1. Bump `version` in `package.json` and merge to `main`
 2. Create a GitHub Release with tag `v<version>` (e.g. `v0.1.1`)
-3. The `publish` workflow checks, builds, verifies the tag matches `package.json`, and publishes
+3. Approve the `release` environment deployment when the `publish` workflow asks
+   (required-reviewer gate — nothing reaches npm without a human click)
+4. The workflow checks, builds, verifies the tag matches `package.json`, and publishes
 
 ## License
 
