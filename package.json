@@ -1,0 +1,55 @@
+{
+  "name": "@wisteria30/webmcp-bridge",
+  "version": "0.1.0",
+  "description": "Expose WebMCP (document.modelContext) tools from a live Chrome page as a stdio MCP server for CLI agents like Claude Code.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "webmcp-bridge": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wisteria30/webmcp-bridge.git"
+  },
+  "homepage": "https://github.com/Wisteria30/webmcp-bridge#readme",
+  "bugs": {
+    "url": "https://github.com/Wisteria30/webmcp-bridge/issues"
+  },
+  "keywords": [
+    "webmcp",
+    "mcp",
+    "model-context-protocol",
+    "modelcontext",
+    "chrome",
+    "cdp",
+    "claude-code",
+    "agent"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
