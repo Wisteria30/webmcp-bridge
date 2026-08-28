@@ -38,6 +38,15 @@ jobs:
             echo "release tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
             exit 1
           fi
-      # Trusted Publishing は npm CLI 11.5.1 以降が必要。Node 同梱版に依存しない。
-      - run: npm install -g npm@latest
+      # Trusted Publishing は npm CLI 11.5.1 以降が必要。mise が Node を固定するので同梱 npm の
+      # バージョンも決まる(グローバル install はしない: npm@latest は Node 固定版と engine
+      # 非互換になりうる)。要件を満たさない Node へ更新された場合は publish 前に落とす。
+      - name: Verify npm supports trusted publishing
+        run: |
+          version="$(npm --version)"
+          echo "npm ${version}"
+          if [ "$(printf '%s\n11.5.1\n' "${version}" | sort -V | head -1)" != "11.5.1" ]; then
+            echo "npm >= 11.5.1 is required for trusted publishing, got ${version}" >&2
+            exit 1
+          fi
       - run: npm publish
