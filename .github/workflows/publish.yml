@@ -15,6 +15,10 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # v* タグからの run しかこの environment でデプロイできない(GitHub 側設定)。
+    # npm の trusted publisher にも同じ environment 名を登録し、これを通らない
+    # OIDC トークンでは publish できないようにする。
+    environment: release
     permissions:
       contents: read
       # Trusted Publishing に必須: OIDC トークンの発行権限
