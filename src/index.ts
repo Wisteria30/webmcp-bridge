@@ -19,7 +19,6 @@ import { CdpConnection } from "./cdpConnection.js";
 import { ChannelEventTracker } from "./channelEvents.js";
 import {
   executePageTool,
-  getPageLocation,
   listPageTools,
   TOOLCHANGE_BINDING,
   TOOLCHANGE_LISTENER_EXPR,
@@ -47,19 +46,6 @@ async function main(): Promise<void> {
   log(`connected to: ${cdp.tabUrl}`);
 
   const channelEnabled = config.channelOrigin !== null;
-  const requireAllowedChannelOrigin = async () => {
-    if (!channelEnabled || config.channelOrigin === null) {
-      return;
-    }
-    const pageLocation = await getPageLocation(cdp);
-    if (pageLocation.origin !== config.channelOrigin) {
-      throw new Error(
-        `Channel mode refuses page origin ${pageLocation.origin}; allowed origin is ` +
-          config.channelOrigin,
-      );
-    }
-  };
-  await requireAllowedChannelOrigin();
   const capabilities = channelEnabled
     ? {
         tools: { listChanged: true },
@@ -87,23 +73,22 @@ async function main(): Promise<void> {
 
   const channelEvents = new ChannelEventTracker();
   let channelEventId = 0;
+  if (channelEnabled) {
+    const initialTools = await listPageTools(cdp, config.channelOrigin);
+    channelEvents.seed(initialTools.map((tool) => tool.name));
+  }
 
   server.setRequestHandler("tools/list", async () => {
-    await requireAllowedChannelOrigin();
-    const tools = await listPageTools(cdp);
-    if (channelEnabled && config.channelOrigin !== null) {
-      const pageLocation = await getPageLocation(cdp);
-      if (pageLocation.origin === config.channelOrigin) {
-        channelEvents.seed(tools.map((tool) => tool.name));
-      }
+    const tools = await listPageTools(cdp, config.channelOrigin);
+    if (channelEnabled) {
+      channelEvents.seed(tools.map((tool) => tool.name));
     }
     return { tools };
   });
 
   server.setRequestHandler("tools/call", async (request) => {
-    await requireAllowedChannelOrigin();
     const args = request.params.arguments === undefined ? {} : request.params.arguments;
-    return await executePageTool(cdp, request.params.name, args);
+    return await executePageTool(cdp, request.params.name, args, config.channelOrigin);
   });
 
   // ページのツール掛け替え(状態依存 tools/list)は、WebMCP 仕様の toolchange イベントで検出する。
@@ -121,14 +106,7 @@ async function main(): Promise<void> {
         if (!channelEnabled || config.channelOrigin === null) {
           return;
         }
-        const [tools, pageLocation] = await Promise.all([listPageTools(cdp), getPageLocation(cdp)]);
-        if (pageLocation.origin !== config.channelOrigin) {
-          log(
-            `suppressed channel event from unexpected origin: ${pageLocation.origin} ` +
-              `(allowed: ${config.channelOrigin})`,
-          );
-          return;
-        }
+        const tools = await listPageTools(cdp, config.channelOrigin);
         const event = channelEvents.observe(tools.map((tool) => tool.name));
         if (event === null) {
           return;

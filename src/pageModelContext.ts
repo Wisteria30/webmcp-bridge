@@ -8,7 +8,6 @@ import type { CdpConnection } from "./cdpConnection.js";
 
 export type PageTool = Tool;
 export type PageCallResult = CallToolResult;
-export type PageLocation = { origin: string };
 
 // toolchange イベントをブリッジプロセスへ届けるための CDP binding 名。
 // index.ts の Runtime.addBinding と TOOLCHANGE_LISTENER_EXPR の両方で使うため、ここで一元管理する。
@@ -19,20 +18,31 @@ export const TOOLCHANGE_BINDING = "__webmcpBridgeToolchange";
 const MODEL_CONTEXT_EXPR =
   "(document.modelContext !== undefined ? document.modelContext : navigator.modelContext)";
 
-const LIST_TOOLS_EXPR = `(async () => {
+function originGuardExpr(allowedOrigin: string | null): string {
+  if (allowedOrigin === null) {
+    return "";
+  }
+  return `if (location.origin !== ${JSON.stringify(allowedOrigin)}) {
+    throw new Error("page origin is not allowed for Channel mode: " + location.origin);
+  }`;
+}
+
+function listToolsExpr(allowedOrigin: string | null): string {
+  return `(async () => {
+  ${originGuardExpr(allowedOrigin)}
   const mc = ${MODEL_CONTEXT_EXPR};
   if (mc === undefined) throw new Error("this page has no WebMCP (modelContext) support");
   const tools = await mc.getTools();
   return tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
 })()`;
-
-const PAGE_LOCATION_EXPR = `({ origin: location.origin })`;
+}
 
 // 仕様ドラフトの executeTool は inputObject(object)を取るが、Chrome 151 の実装は
 // JSON 文字列しか受け付けない(object を渡すと "Failed to parse input arguments"。2026-08 実測)。
 // 実装に合わせて文字列で渡す。Chrome が仕様に追従したら見直すこと。
-function executeToolExpr(name: string, args: unknown): string {
+function executeToolExpr(name: string, args: unknown, allowedOrigin: string | null): string {
   return `(async () => {
+    ${originGuardExpr(allowedOrigin)}
     const mc = ${MODEL_CONTEXT_EXPR};
     if (mc === undefined) throw new Error("this page has no WebMCP (modelContext) support");
     const tools = await mc.getTools();
@@ -116,31 +126,23 @@ export function toolListSignature(tools: ReadonlyArray<{ name: string }>): strin
     .join(",");
 }
 
-export async function listPageTools(cdp: CdpConnection): Promise<PageTool[]> {
-  const raw = await cdp.evaluate(LIST_TOOLS_EXPR);
+export async function listPageTools(
+  cdp: CdpConnection,
+  allowedOrigin: string | null = null,
+): Promise<PageTool[]> {
+  const raw = await cdp.evaluate(listToolsExpr(allowedOrigin));
   if (!Array.isArray(raw)) {
     throw new Error(`page returned a non-array tool list: ${JSON.stringify(raw)}`);
   }
   return raw.map(normalizePageTool);
 }
 
-export async function getPageLocation(cdp: CdpConnection): Promise<PageLocation> {
-  const raw = await cdp.evaluate(PAGE_LOCATION_EXPR);
-  if (raw === null || typeof raw !== "object") {
-    throw new Error(`page returned an invalid location: ${JSON.stringify(raw)}`);
-  }
-  const location = raw as { origin?: unknown };
-  if (typeof location.origin !== "string") {
-    throw new Error(`page returned an invalid location: ${JSON.stringify(raw)}`);
-  }
-  return { origin: location.origin };
-}
-
 export async function executePageTool(
   cdp: CdpConnection,
   name: string,
   args: unknown,
+  allowedOrigin: string | null = null,
 ): Promise<PageCallResult> {
-  const raw = await cdp.evaluate(executeToolExpr(name, args));
+  const raw = await cdp.evaluate(executeToolExpr(name, args, allowedOrigin));
   return normalizeCallResult(raw);
 }
