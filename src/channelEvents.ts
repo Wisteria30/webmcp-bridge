@@ -1,8 +1,12 @@
-export type ChannelEventKind = "room_ready" | "role_required" | "spymaster_turn" | "operative_turn";
+export type ChannelEventKind =
+  | "room_ready"
+  | "spymaster_turn"
+  | "operative_turn"
+  | "post_game_message";
 
 export type ChannelEvent = {
   kind: ChannelEventKind;
-  toolName: "join_room" | "set_team_role" | "give_clue" | "select_card";
+  toolName: "join_room" | "give_clue" | "select_card" | "post_game_message_pending";
   content: string;
 };
 
@@ -12,12 +16,6 @@ const EVENT_BY_TOOL: Readonly<Record<ChannelEvent["toolName"], ChannelEvent>> = 
     toolName: "join_room",
     content:
       "The Codenames room is ready. Act now without waiting for a human message: call join_room, then inspect the game state and continue setup.",
-  },
-  set_team_role: {
-    kind: "role_required",
-    toolName: "set_team_role",
-    content:
-      "Your Codenames seat is ready for team and role selection. Inspect the game state and use set_team_role as instructed by your human teammate.",
   },
   give_clue: {
     kind: "spymaster_turn",
@@ -31,13 +29,19 @@ const EVENT_BY_TOOL: Readonly<Record<ChannelEvent["toolName"], ChannelEvent>> = 
     content:
       "It is your Codenames operative turn. Act now without waiting for a human message: inspect the game state and call select_card when you have chosen.",
   },
+  post_game_message_pending: {
+    kind: "post_game_message",
+    toolName: "post_game_message_pending",
+    content:
+      "A human sent you a private Codenames post-game question. Act now without waiting for another human prompt: call post_game_message_pending, answer each sender with send_post_game_message, then wait for the next question with wait_for_post_game_message.",
+  },
 };
 
 const TOOL_PRIORITY: ReadonlyArray<ChannelEvent["toolName"]> = [
   "join_room",
-  "set_team_role",
   "give_clue",
   "select_card",
+  "post_game_message_pending",
 ];
 
 export class ChannelEventTracker {
