@@ -8,6 +8,7 @@ import type { CdpConnection } from "./cdpConnection.js";
 
 export type PageTool = Tool;
 export type PageCallResult = CallToolResult;
+export type PageLocation = { origin: string };
 
 // toolchange イベントをブリッジプロセスへ届けるための CDP binding 名。
 // index.ts の Runtime.addBinding と TOOLCHANGE_LISTENER_EXPR の両方で使うため、ここで一元管理する。
@@ -24,6 +25,8 @@ const LIST_TOOLS_EXPR = `(async () => {
   const tools = await mc.getTools();
   return tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
 })()`;
+
+const PAGE_LOCATION_EXPR = `({ origin: location.origin })`;
 
 // 仕様ドラフトの executeTool は inputObject(object)を取るが、Chrome 151 の実装は
 // JSON 文字列しか受け付けない(object を渡すと "Failed to parse input arguments"。2026-08 実測)。
@@ -119,6 +122,18 @@ export async function listPageTools(cdp: CdpConnection): Promise<PageTool[]> {
     throw new Error(`page returned a non-array tool list: ${JSON.stringify(raw)}`);
   }
   return raw.map(normalizePageTool);
+}
+
+export async function getPageLocation(cdp: CdpConnection): Promise<PageLocation> {
+  const raw = await cdp.evaluate(PAGE_LOCATION_EXPR);
+  if (raw === null || typeof raw !== "object") {
+    throw new Error(`page returned an invalid location: ${JSON.stringify(raw)}`);
+  }
+  const location = raw as { origin?: unknown };
+  if (typeof location.origin !== "string") {
+    throw new Error(`page returned an invalid location: ${JSON.stringify(raw)}`);
+  }
+  return { origin: location.origin };
 }
 
 export async function executePageTool(

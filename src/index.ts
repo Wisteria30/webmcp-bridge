@@ -6,7 +6,8 @@
 //   1. Chrome を --remote-debugging-port=9222 --enable-features=WebMCPTesting で起動し、対象ページを開く
 //   2. claude mcp add my-page -- npx -y @wisteria30/webmcp-bridge
 //
-// 環境変数: WEBMCP_BRIDGE_CDP_PORT / WEBMCP_BRIDGE_TARGET_URL
+// 環境変数: WEBMCP_BRIDGE_CDP_PORT / WEBMCP_BRIDGE_TARGET_URL /
+// WEBMCP_BRIDGE_CHANNEL_ORIGIN
 
 import { createRequire } from "node:module";
 
@@ -15,8 +16,10 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 
 import { loadBridgeConfig } from "./bridgeConfig.js";
 import { CdpConnection } from "./cdpConnection.js";
+import { ChannelEventTracker } from "./channelEvents.js";
 import {
   executePageTool,
+  getPageLocation,
   listPageTools,
   TOOLCHANGE_BINDING,
   TOOLCHANGE_LISTENER_EXPR,
@@ -43,22 +46,62 @@ async function main(): Promise<void> {
   });
   log(`connected to: ${cdp.tabUrl}`);
 
+  const channelEnabled = config.channelOrigin !== null;
+  const requireAllowedChannelOrigin = async () => {
+    if (!channelEnabled || config.channelOrigin === null) {
+      return;
+    }
+    const pageLocation = await getPageLocation(cdp);
+    if (pageLocation.origin !== config.channelOrigin) {
+      throw new Error(
+        `Channel mode refuses page origin ${pageLocation.origin}; allowed origin is ` +
+          config.channelOrigin,
+      );
+    }
+  };
+  await requireAllowedChannelOrigin();
+  const capabilities = channelEnabled
+    ? {
+        tools: { listChanged: true },
+        experimental: { "claude/channel": {} },
+      }
+    : { tools: { listChanged: true } };
+  const baseInstructions =
+    "This server relays the WebMCP tools of the page currently open in the browser. " +
+    "The tool list changes with the page state: refetch it whenever you receive a " +
+    "tools/list_changed notification.";
+  const instructions = channelEnabled
+    ? baseInstructions +
+      " When a Codenames event arrives through a <channel> message, act immediately with the " +
+      "newly available tool without waiting for another human prompt. Never reveal hidden " +
+      "Codenames card information."
+    : baseInstructions;
+
   const server = new Server(
     { name: "webmcp-bridge", version: BRIDGE_VERSION },
     {
-      capabilities: { tools: { listChanged: true } },
-      instructions:
-        "This server relays the WebMCP tools of the page currently open in the browser. " +
-        "The tool list changes with the page state: refetch it whenever you receive a " +
-        "tools/list_changed notification.",
+      capabilities,
+      instructions,
     },
   );
 
-  server.setRequestHandler("tools/list", async () => ({
-    tools: await listPageTools(cdp),
-  }));
+  const channelEvents = new ChannelEventTracker();
+  let channelEventId = 0;
+
+  server.setRequestHandler("tools/list", async () => {
+    await requireAllowedChannelOrigin();
+    const tools = await listPageTools(cdp);
+    if (channelEnabled && config.channelOrigin !== null) {
+      const pageLocation = await getPageLocation(cdp);
+      if (pageLocation.origin === config.channelOrigin) {
+        channelEvents.seed(tools.map((tool) => tool.name));
+      }
+    }
+    return { tools };
+  });
 
   server.setRequestHandler("tools/call", async (request) => {
+    await requireAllowedChannelOrigin();
     const args = request.params.arguments === undefined ? {} : request.params.arguments;
     return await executePageTool(cdp, request.params.name, args);
   });
@@ -70,12 +113,42 @@ async function main(): Promise<void> {
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);
     }
-    debounceTimer = setTimeout(() => {
+    debounceTimer = setTimeout(async () => {
       debounceTimer = null;
       log("notifying tool list change");
-      server.sendToolListChanged().catch((error: unknown) => {
-        log(`failed to send tools/list_changed: ${String(error)}`);
-      });
+      try {
+        await server.sendToolListChanged();
+        if (!channelEnabled || config.channelOrigin === null) {
+          return;
+        }
+        const [tools, pageLocation] = await Promise.all([listPageTools(cdp), getPageLocation(cdp)]);
+        if (pageLocation.origin !== config.channelOrigin) {
+          log(
+            `suppressed channel event from unexpected origin: ${pageLocation.origin} ` +
+              `(allowed: ${config.channelOrigin})`,
+          );
+          return;
+        }
+        const event = channelEvents.observe(tools.map((tool) => tool.name));
+        if (event === null) {
+          return;
+        }
+        channelEventId += 1;
+        await server.notification({
+          method: "notifications/claude/channel",
+          params: {
+            content: event.content,
+            meta: {
+              event: event.kind,
+              event_id: String(channelEventId),
+              tool: event.toolName,
+            },
+          },
+        });
+        log(`notified Claude channel: ${event.kind}`);
+      } catch (error) {
+        log(`failed to publish tool change: ${String(error)}`);
+      }
     }, TOOLCHANGE_DEBOUNCE_MS);
   };
 

@@ -2,7 +2,8 @@
 
 Expose [WebMCP](https://github.com/webmachinelearning/webmcp) (`document.modelContext`) tools
 from a live Chrome page as a **stdio MCP server**, so CLI agents like Claude Code can play with
-the web page you have open — as it is, with its current state.
+the web page you have open — as it is, with its current state. An explicitly enabled Claude Code
+Channel mode can also wake a running session when a trusted Codenames action tool becomes available.
 
 ```text
 Chrome page (WebMCP tools) ⇄ CDP (127.0.0.1) ⇄ webmcp-bridge ⇄ stdio MCP ⇄ Claude Code / Codex CLI / ...
@@ -52,6 +53,26 @@ the testing-only `modelContextTesting` API.
 
 3. Start your agent. The page's WebMCP tools appear as regular MCP tools.
 
+## Claude Code Channel for Codenames
+
+The repository contains a Claude Code marketplace plugin that starts the bridge with a locked
+Codenames origin and emits Channel events for newly available `join_room`, `set_team_role`,
+`give_clue`, and `select_card` tools.
+
+```bash
+claude plugin marketplace add Wisteria30/webmcp-bridge
+claude plugin install codenames-web@wisteria30 --scope user
+claude \
+  --dangerously-load-development-channels plugin:codenames-web@wisteria30 \
+  --allowedTools 'mcp__plugin_codenames-web_codenames-web__*'
+```
+
+Claude Code Channels are a research preview. Third-party channels currently require the explicit
+development-channel flag even when installed from a marketplace. The `--allowedTools` value grants
+only this plugin's WebMCP tools, so room and turn actions do not pause for approval.
+
+Keep the Claude Code session and the dedicated Chrome window open for the duration of the game.
+
 ## Configuration
 
 Environment variables (e.g. `claude mcp add my-page --env WEBMCP_BRIDGE_TARGET_URL=example.com -- ...`):
@@ -59,6 +80,8 @@ Environment variables (e.g. `claude mcp add my-page --env WEBMCP_BRIDGE_TARGET_U
 - `WEBMCP_BRIDGE_CDP_PORT`: Chrome's remote debugging port (default `9222`)
 - `WEBMCP_BRIDGE_TARGET_URL`: substring filter to pick the target tab by URL when several tabs are
   open (default: the first page tab)
+- `WEBMCP_BRIDGE_CHANNEL_ORIGIN`: exact HTTP(S) origin allowed to emit Claude Code Channel events.
+  Channel mode is disabled when omitted. Enabling it also requires `WEBMCP_BRIDGE_TARGET_URL`.
 
 ## How it works, in one paragraph
 
@@ -88,6 +111,10 @@ Both observed in 2026-08; the bridge compensates and should be revisited once Ch
 - Anything the page's WebMCP tools can do, your agent can do. Only run the bridge against pages you
   trust, and remember that `--remote-debugging-port` opens local debugging access to your whole
   browser profile — prefer a dedicated Chrome profile if that concerns you.
+- Channel mode never forwards page text or tool descriptions. It generates fixed messages only for
+  the four allowlisted Codenames action tool names, and suppresses events unless the page origin
+  exactly matches `WEBMCP_BRIDGE_CHANNEL_ORIGIN`. Startup, tool listing, and tool calls fail closed
+  if the selected tab is on another origin.
 
 ## Development
 
