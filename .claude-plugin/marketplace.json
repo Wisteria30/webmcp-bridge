@@ -1,0 +1,14 @@
+{
+  "name": "wisteria30",
+  "owner": {
+    "name": "Wisteria30"
+  },
+  "description": "Claude Code plugins for connecting live browser WebMCP tools and event channels.",
+  "plugins": [
+    {
+      "name": "codenames-web",
+      "source": "./plugins/codenames-web",
+      "description": "Connect Claude Code to Codenames WebMCP tools and push room and turn events into the active session."
+    }
+  ]
+}
