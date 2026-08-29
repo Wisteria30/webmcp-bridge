@@ -23,9 +23,9 @@ describe("ChannelEventTracker", () => {
 
   it.each([
     ["join_room", "room_ready"],
-    ["set_team_role", "role_required"],
     ["give_clue", "spymaster_turn"],
     ["select_card", "operative_turn"],
+    ["post_game_message_pending", "post_game_message"],
   ] as const)("maps newly added %s to %s", (toolName, eventKind) => {
     const tracker = new ChannelEventTracker();
     tracker.observe(["get_game_state"]);

@@ -112,7 +112,7 @@ Both observed in 2026-08; the bridge compensates and should be revisited once Ch
   trust, and remember that `--remote-debugging-port` opens local debugging access to your whole
   browser profile — prefer a dedicated Chrome profile if that concerns you.
 - Channel mode never forwards page text or tool descriptions. It generates fixed messages only for
-  the four allowlisted Codenames action tool names, and suppresses events unless the page origin
+  the allowlisted Codenames turn and conversation tool names, and suppresses events unless the page origin
   exactly matches `WEBMCP_BRIDGE_CHANNEL_ORIGIN`. Startup, tool listing, and tool calls fail closed
   if the selected tab is on another origin.
 
