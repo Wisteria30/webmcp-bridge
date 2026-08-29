@@ -1,7 +1,7 @@
 {
   "name": "codenames-web",
   "description": "Connect Claude Code to Codenames WebMCP tools and wake it for room and turn events.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Wisteria30"
   }

@@ -25,6 +25,7 @@ describe("ChannelEventTracker", () => {
     ["join_room", "room_ready"],
     ["give_clue", "spymaster_turn"],
     ["select_card", "operative_turn"],
+    ["wait_for_post_game_message", "game_finished"],
     ["post_game_message_pending", "post_game_message"],
   ] as const)("maps newly added %s to %s", (toolName, eventKind) => {
     const tracker = new ChannelEventTracker();
@@ -52,6 +53,41 @@ describe("ChannelEventTracker", () => {
 
     expect(tracker.observe(["get_game_state", "select_card"])).toMatchObject({
       kind: "operative_turn",
+    });
+  });
+
+  it("notifies when a waiting agent reaches the finished game scene", () => {
+    const tracker = new ChannelEventTracker();
+    tracker.observe(["get_game_state", "get_rules", "wait_for_my_turn"]);
+
+    expect(
+      tracker.observe([
+        "get_game_state",
+        "get_rules",
+        "send_post_game_message",
+        "wait_for_post_game_message",
+      ]),
+    ).toMatchObject({
+      kind: "game_finished",
+      toolName: "wait_for_post_game_message",
+    });
+  });
+
+  it("prioritizes an unanswered post-game question over the game-finished event", () => {
+    const tracker = new ChannelEventTracker();
+    tracker.observe(["get_game_state", "get_rules", "wait_for_my_turn"]);
+
+    expect(
+      tracker.observe([
+        "get_game_state",
+        "get_rules",
+        "send_post_game_message",
+        "wait_for_post_game_message",
+        "post_game_message_pending",
+      ]),
+    ).toMatchObject({
+      kind: "post_game_message",
+      toolName: "post_game_message_pending",
     });
   });
 });

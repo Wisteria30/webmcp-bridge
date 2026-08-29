@@ -56,8 +56,8 @@ the testing-only `modelContextTesting` API.
 ## Claude Code Channel for Codenames
 
 The repository contains a Claude Code marketplace plugin that starts the bridge with a locked
-Codenames origin and emits Channel events for newly available `join_room`, `set_team_role`,
-`give_clue`, and `select_card` tools.
+Codenames origin and emits Channel events when a room is ready, an agent turn begins, a game ends,
+or a post-game question arrives.
 
 ```bash
 claude plugin marketplace add Wisteria30/webmcp-bridge
