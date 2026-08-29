@@ -2,11 +2,17 @@ export type ChannelEventKind =
   | "room_ready"
   | "spymaster_turn"
   | "operative_turn"
+  | "game_finished"
   | "post_game_message";
 
 export type ChannelEvent = {
   kind: ChannelEventKind;
-  toolName: "join_room" | "give_clue" | "select_card" | "post_game_message_pending";
+  toolName:
+    | "join_room"
+    | "give_clue"
+    | "select_card"
+    | "wait_for_post_game_message"
+    | "post_game_message_pending";
   content: string;
 };
 
@@ -35,6 +41,12 @@ const EVENT_BY_TOOL: Readonly<Record<ChannelEvent["toolName"], ChannelEvent>> = 
     content:
       "A human sent you a private Codenames post-game question. Act now without waiting for another human prompt: call post_game_message_pending, answer each sender with send_post_game_message, then wait for the next question with wait_for_post_game_message.",
   },
+  wait_for_post_game_message: {
+    kind: "game_finished",
+    toolName: "wait_for_post_game_message",
+    content:
+      "The Codenames game has finished. Act now without waiting for a human message: inspect the final game state, acknowledge the result, then call wait_for_post_game_message with cursor 0 to keep this session available for post-game questions.",
+  },
 };
 
 const TOOL_PRIORITY: ReadonlyArray<ChannelEvent["toolName"]> = [
@@ -42,6 +54,7 @@ const TOOL_PRIORITY: ReadonlyArray<ChannelEvent["toolName"]> = [
   "give_clue",
   "select_card",
   "post_game_message_pending",
+  "wait_for_post_game_message",
 ];
 
 export class ChannelEventTracker {

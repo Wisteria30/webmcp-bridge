@@ -1,6 +1,6 @@
 {
   "name": "@wisteria30/webmcp-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Expose WebMCP (document.modelContext) tools from a live Chrome page as a stdio MCP server for CLI agents like Claude Code.",
   "license": "MIT",
   "type": "module",

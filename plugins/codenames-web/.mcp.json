@@ -2,7 +2,7 @@
   "mcpServers": {
     "codenames-web": {
       "command": "npx",
-      "args": ["-y", "@wisteria30/webmcp-bridge@0.2.0"],
+      "args": ["-y", "@wisteria30/webmcp-bridge@0.2.1"],
       "env": {
         "WEBMCP_BRIDGE_TARGET_URL": "https://codenames.kakka.workers.dev/",
         "WEBMCP_BRIDGE_CHANNEL_ORIGIN": "https://codenames.kakka.workers.dev"
