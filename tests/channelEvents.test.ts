@@ -77,17 +77,21 @@ describe("ChannelEventTracker", () => {
     const tracker = new ChannelEventTracker();
     tracker.observe(["get_game_state", "get_rules", "wait_for_my_turn"]);
 
-    expect(
-      tracker.observe([
-        "get_game_state",
-        "get_rules",
-        "send_post_game_message",
-        "wait_for_post_game_message",
-        "post_game_message_pending",
-      ]),
-    ).toMatchObject({
+    const event = tracker.observe([
+      "get_game_state",
+      "get_rules",
+      "set_post_game_typing",
+      "send_post_game_message",
+      "wait_for_post_game_message",
+      "post_game_message_pending",
+    ]);
+
+    expect(event).toMatchObject({
       kind: "post_game_message",
       toolName: "post_game_message_pending",
     });
+    expect(event?.content).toContain("must reply when the post @mentions you");
+    expect(event?.content).toContain("set_post_game_typing");
+    expect(event?.content).toContain("send nothing");
   });
 });

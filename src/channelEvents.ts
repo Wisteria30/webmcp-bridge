@@ -39,7 +39,7 @@ const EVENT_BY_TOOL: Readonly<Record<ChannelEvent["toolName"], ChannelEvent>> = 
     kind: "post_game_message",
     toolName: "post_game_message_pending",
     content:
-      "A human sent you a private Codenames post-game question. Act now without waiting for another human prompt: call post_game_message_pending, answer each sender with send_post_game_message, then wait for the next question with wait_for_post_game_message.",
+      "A human posted in the Codenames post-game group chat. Act now without waiting for another human prompt: call post_game_message_pending. You must reply when the post @mentions you. Otherwise, decide whether joining would make the group conversation more fun or useful. If replying, call set_post_game_typing with true before composing, then send_post_game_message. If not replying, send nothing and wait for the next post.",
   },
   wait_for_post_game_message: {
     kind: "game_finished",
